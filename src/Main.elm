@@ -18,6 +18,7 @@ import Html.Events exposing (onClick)
 import LineChart
 import List
 import List.Nonempty as NE
+import Random
 import Result
 import Translations.Account
 
@@ -36,6 +37,7 @@ type Msg
     = Buy
     | Sell
     | Tick
+    | SetPrice Int
 
 
 type alias State =
@@ -91,6 +93,21 @@ push state model =
         newState
 
 
+generatePrice : Int -> Random.Generator Int
+generatePrice price =
+    let
+        delta =
+            15
+
+        lower =
+            max (price - delta) 1
+
+        upper =
+            price + delta
+    in
+    Random.int lower upper
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -98,10 +115,19 @@ update msg model =
             getState model
     in
     case msg of
+        SetPrice newPrice ->
+            ( model
+                |> NE.replaceHead
+                    { state
+                        | price = newPrice
+                    }
+            , Cmd.none
+            )
+
         Tick ->
             ( model
                 |> NE.cons { state | time = state.time + 1 }
-            , Cmd.none
+            , Random.generate SetPrice (generatePrice state.price)
             )
 
         Buy ->
