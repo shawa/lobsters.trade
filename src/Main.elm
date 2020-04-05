@@ -29,8 +29,8 @@ main =
 
 
 type Msg
-    = Increment
-    | Decrement
+    = Buy
+    | Sell
 
 
 type alias Model =
@@ -57,14 +57,16 @@ addCmd cmd model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Increment ->
-            model
-                |> Account.changeBalance 1
-                |> addCmd Cmd.none
-
-        Decrement ->
+        Buy ->
             model
                 |> Account.changeBalance -1
+                |> Account.changeLobsters 1
+                |> addCmd Cmd.none
+
+        Sell ->
+            model
+                |> Account.changeBalance 1
+                |> Account.changeLobsters -1
                 |> addCmd Cmd.none
 
 
@@ -95,8 +97,9 @@ viewAccount model =
 viewControls : Html Msg
 viewControls =
     div []
-        [ button [ onClick Increment ] [ text "+" ]
-        , button [ onClick Decrement ] [ text "-" ]
+        [ p [] [ text "$1 = 1 Lobster" ]
+        , button [ onClick Buy ] [ text "Buy" ]
+        , button [ onClick Sell ] [ text "Sell" ]
         ]
 
 
