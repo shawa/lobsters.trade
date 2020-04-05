@@ -1,4 +1,0 @@
-#!/bin/bash
-set -euo pipefail
-
-elm-live src/Main.elm --hot -- --debug --output=elm.js

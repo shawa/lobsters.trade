@@ -136,7 +136,6 @@ update msg model =
                         | account =
                             state.account
                                 |> Account.buy state.price 1
-                                |> Debug.log "Tried to Buy"
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
@@ -149,7 +148,6 @@ update msg model =
                         | account =
                             state.account
                                 |> Account.sell state.price 1
-                                |> Debug.log "Tried to sell"
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
