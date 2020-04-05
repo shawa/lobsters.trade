@@ -238,10 +238,9 @@ viewChart model =
 
 body : Model -> List (Html Msg)
 body model =
-    [ h1 [] [ text "Open Lobster Exchange" ]
-    , p [] [ text "Use your wit to get loads of money" ]
+    [ h1 [] [ text "Open Lobster Exchange \u{1F99E}" ]
+    , p [] [ text "Buy and sell fresh lobsters on the open market! Use your wit to get loads of money!" ]
     , viewAccount (getState model).account
     , viewControls
     , viewChart model
-    , button [ onClick Tick ] [ text "Tick" ]
     ]
