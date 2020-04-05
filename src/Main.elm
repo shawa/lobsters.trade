@@ -16,6 +16,8 @@ import Html
         )
 import Html.Events exposing (onClick)
 import LineChart
+import LineChart.Colors
+import LineChart.Dots
 import List
 import List.Nonempty as NE
 import Random
@@ -191,37 +193,51 @@ viewControls =
 
 
 type alias ChartData =
-    { time : Int
-    , value : Int
+    { time : Float
+    , value : Float
     }
 
 
 viewChart : Model -> Html Msg
 viewChart model =
     let
-        prices : State -> ChartData
-        prices state =
-            { time = state.time
-            , value = state.price
-            }
-
-        balances : State -> ChartData
-        balances state =
-            { time = state.time
-            , value = Account.balance state.account
-            }
-
         listWith : (a -> b) -> NE.Nonempty a -> List b
-        listWith f nonEmpty =
-            nonEmpty
-                |> NE.map f
-                |> NE.toList
+        listWith f =
+            NE.map f >> NE.toList
+
+        extractPrices : State -> ChartData
+        extractPrices state =
+            { time = toFloat state.time
+            , value = toFloat state.price
+            }
+
+        extractBalances : State -> ChartData
+        extractBalances state =
+            { time = toFloat state.time
+            , value = toFloat <| Account.balance state.account
+            }
+
+        balances : LineChart.Series ChartData
+        balances =
+            LineChart.line
+                LineChart.Colors.green
+                LineChart.Dots.triangle
+                "Balance"
+                (listWith extractBalances model)
+
+        prices : LineChart.Series ChartData
+        prices =
+            LineChart.line
+                LineChart.Colors.pink
+                LineChart.Dots.circle
+                "Price"
+                (listWith extractPrices model)
     in
-    LineChart.view2
-        (.time >> toFloat)
-        (.value >> toFloat)
-        (model |> listWith prices)
-        (model |> listWith balances)
+    LineChart.view .time
+        .value
+        [ prices
+        , balances
+        ]
 
 
 body : Model -> List (Html Msg)
