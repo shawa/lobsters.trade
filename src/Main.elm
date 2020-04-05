@@ -5,6 +5,7 @@ import Browser
 import Html
     exposing
         ( Html
+        , a
         , button
         , div
         , h1
@@ -14,6 +15,7 @@ import Html
         , text
         , tr
         )
+import Html.Attributes exposing (href)
 import Html.Events exposing (onClick)
 import LineChart
 import LineChart.Colors
@@ -241,4 +243,5 @@ body model =
     , viewAccount (getState model).account
     , viewControls
     , viewChart model
+    , a [ href "https://github.com/shawa/lobsters.trade" ] [ text "source" ]
     ]
