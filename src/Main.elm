@@ -21,7 +21,8 @@ import LineChart
 import LineChart.Colors
 import LineChart.Dots
 import List
-import List.Nonempty as NE
+import List.Nonempty
+import Maybe
 import Random
 import Result
 import Time
@@ -53,17 +54,12 @@ type alias State =
 
 
 type alias Model =
-    NE.Nonempty State
+    List.Nonempty.Nonempty State
 
 
 subscriptions : Model -> Sub Msg
 subscriptions =
     always (Time.every 250 (always Tick))
-
-
-addCmd : Cmd Msg -> Model -> ( Model, Cmd Msg )
-addCmd cmd model =
-    ( model, cmd )
 
 
 init : () -> ( Model, Cmd Msg )
@@ -75,27 +71,23 @@ init _ =
             , account = Account.empty |> Account.setBalance 10
             }
     in
-    ( NE.fromElement initState
+    ( List.Nonempty.fromElement initState
     , Cmd.none
     )
-
-
-getState : Model -> State
-getState =
-    NE.head
 
 
 push : State -> Model -> Model
 push state model =
     let
-        newState =
-            NE.cons state model
+        maxHistory =
+            100
     in
-    if NE.length newState > 100 then
-        newState |> NE.reverse |> NE.pop |> NE.reverse
-
-    else
-        newState
+    model
+        |> List.Nonempty.cons state
+        |> List.Nonempty.toList
+        |> List.take maxHistory
+        |> List.Nonempty.fromList
+        |> Maybe.withDefault model
 
 
 generatePrice : Int -> Random.Generator Int
@@ -114,12 +106,12 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         state =
-            getState model
+            List.Nonempty.head model
     in
     case msg of
         SetPrice newPrice ->
             ( model
-                |> NE.replaceHead
+                |> List.Nonempty.replaceHead
                     { state
                         | price = newPrice
                     }
@@ -133,7 +125,7 @@ update msg model =
 
         Buy ->
             ( model
-                |> NE.replaceHead
+                |> List.Nonempty.replaceHead
                     { state
                         | account =
                             state.account
@@ -145,7 +137,7 @@ update msg model =
 
         Sell ->
             ( model
-                |> NE.replaceHead
+                |> List.Nonempty.replaceHead
                     { state
                         | account =
                             state.account
@@ -197,9 +189,9 @@ type alias ChartData =
 viewChart : Model -> Html Msg
 viewChart model =
     let
-        listWith : (a -> b) -> NE.Nonempty a -> List b
+        listWith : (a -> b) -> List.Nonempty.Nonempty a -> List b
         listWith f =
-            NE.map f >> NE.toList
+            List.Nonempty.map f >> List.Nonempty.toList
 
         extractPrices : State -> ChartData
         extractPrices state =
@@ -240,7 +232,7 @@ body : Model -> List (Html Msg)
 body model =
     [ h1 [] [ text "Open Lobster Exchange \u{1F99E}" ]
     , p [] [ text "Buy and sell fresh lobsters on the open market! Use your wit to get loads of money!" ]
-    , viewAccount (getState model).account
+    , viewAccount (List.Nonempty.head model).account
     , viewControls
     , viewChart model
     , a [ href "https://github.com/shawa/lobsters.trade" ] [ text "source" ]
