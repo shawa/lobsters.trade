@@ -5,7 +5,10 @@ module Account exposing
     , changeLobsters
     , empty
     , lobsters
+    , setBalance
     )
+
+import Result exposing (Result(..))
 
 
 type Account
@@ -15,14 +18,27 @@ type Account
         }
 
 
-changeBalance : Int -> Account -> Account
+setBalance : Int -> Account -> Account
+setBalance amount (Account account) =
+    Account { account | balance = amount }
+
+
+changeBalance : Int -> Account -> Result String Account
 changeBalance amount (Account account) =
-    Account { account | balance = account.balance + amount }
+    if account.balance + amount < 0 then
+        Err <| "Insufficent balance to add " ++ String.fromInt amount
+
+    else
+        Ok <| Account { account | balance = account.balance + amount }
 
 
-changeLobsters : Int -> Account -> Account
+changeLobsters : Int -> Account -> Result String Account
 changeLobsters amount (Account account) =
-    Account { account | lobsters = account.lobsters + amount }
+    if account.lobsters + amount < 0 then
+        Err <| "Insufficent lobsters to add " ++ String.fromInt amount
+
+    else
+        Ok <| Account { account | lobsters = account.lobsters + amount }
 
 
 empty : Account

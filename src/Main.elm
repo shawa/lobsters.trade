@@ -15,6 +15,7 @@ import Html
         , tr
         )
 import Html.Events exposing (onClick)
+import Result
 import Translations.Account
 
 
@@ -42,16 +43,16 @@ subscriptions =
     always Sub.none
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
-    ( Account.empty
-    , Cmd.none
-    )
-
-
 addCmd : Cmd Msg -> Model -> ( Model, Cmd Msg )
 addCmd cmd model =
     ( model, cmd )
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    Account.empty
+        |> Account.setBalance 10
+        |> addCmd Cmd.none
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -60,13 +61,15 @@ update msg model =
         Buy ->
             model
                 |> Account.changeBalance -1
-                |> Account.changeLobsters 1
+                |> Result.andThen (Account.changeLobsters 1)
+                |> Result.withDefault model
                 |> addCmd Cmd.none
 
         Sell ->
             model
                 |> Account.changeBalance 1
-                |> Account.changeLobsters -1
+                |> Result.andThen (Account.changeLobsters -1)
+                |> Result.withDefault model
                 |> addCmd Cmd.none
 
 
