@@ -22,6 +22,7 @@ import List
 import List.Nonempty as NE
 import Random
 import Result
+import Time
 import Translations.Account
 
 
@@ -55,7 +56,7 @@ type alias Model =
 
 subscriptions : Model -> Sub Msg
 subscriptions =
-    always Sub.none
+    always (Time.every 250 (always Tick))
 
 
 addCmd : Cmd Msg -> Model -> ( Model, Cmd Msg )
@@ -98,14 +99,11 @@ push state model =
 generatePrice : Int -> Random.Generator Int
 generatePrice price =
     let
-        delta =
-            15
-
         lower =
-            max (price - delta) 1
+            max 1 (price - 1)
 
         upper =
-            price + delta
+            min 10 (price + 1)
     in
     Random.int lower upper
 
@@ -127,8 +125,7 @@ update msg model =
             )
 
         Tick ->
-            ( model
-                |> NE.cons { state | time = state.time + 1 }
+            ( push { state | time = state.time + 1 } model
             , Random.generate SetPrice (generatePrice state.price)
             )
 
@@ -138,8 +135,8 @@ update msg model =
                     { state
                         | account =
                             state.account
-                                |> Account.changeBalance -1
-                                |> Result.andThen (Account.changeLobsters 1)
+                                |> Account.buy state.price 1
+                                |> Debug.log "Tried to Buy"
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
@@ -151,8 +148,8 @@ update msg model =
                     { state
                         | account =
                             state.account
-                                |> Account.changeBalance 1
-                                |> Result.andThen (Account.changeLobsters -1)
+                                |> Account.sell state.price 1
+                                |> Debug.log "Tried to sell"
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
@@ -161,7 +158,7 @@ update msg model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = ""
+    { title = "Open Lobster Exchange"
     , body = body model
     }
 
@@ -186,8 +183,7 @@ viewAccount account =
 viewControls : Html Msg
 viewControls =
     div []
-        [ p [] [ text "$1 = 1 Lobster" ]
-        , button [ onClick Buy ] [ text "Buy" ]
+        [ button [ onClick Buy ] [ text "Buy" ]
         , button [ onClick Sell ] [ text "Sell" ]
         ]
 

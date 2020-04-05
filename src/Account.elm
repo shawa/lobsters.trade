@@ -1,10 +1,10 @@
 module Account exposing
     ( Account
     , balance
-    , changeBalance
-    , changeLobsters
+    , buy
     , empty
     , lobsters
+    , sell
     , setBalance
     )
 
@@ -26,7 +26,10 @@ setBalance amount (Account account) =
 changeBalance : Int -> Account -> Result String Account
 changeBalance amount (Account account) =
     if account.balance + amount < 0 then
-        Err <| "Insufficent balance to add " ++ String.fromInt amount
+        Err <|
+            "If I were to change the balance by "
+                ++ String.fromInt amount
+                ++ " it would fall below zero!"
 
     else
         Ok <| Account { account | balance = account.balance + amount }
@@ -35,10 +38,27 @@ changeBalance amount (Account account) =
 changeLobsters : Int -> Account -> Result String Account
 changeLobsters amount (Account account) =
     if account.lobsters + amount < 0 then
-        Err <| "Insufficent lobsters to add " ++ String.fromInt amount
+        Err <|
+            "If I were to change the number of lobsters by "
+                ++ String.fromInt amount
+                ++ " it would fall below zero!"
 
     else
         Ok <| Account { account | lobsters = account.lobsters + amount }
+
+
+sell : Int -> Int -> Account -> Result String Account
+sell price amount account =
+    account
+        |> changeLobsters -amount
+        |> Result.andThen (changeBalance (amount * price))
+
+
+buy : Int -> Int -> Account -> Result String Account
+buy price amount account =
+    account
+        |> changeBalance (-amount * price)
+        |> Result.andThen (changeLobsters amount)
 
 
 empty : Account
