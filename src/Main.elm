@@ -17,6 +17,7 @@ import Html
 import Html.Events exposing (onClick)
 import LineChart
 import List
+import List.Nonempty as NE
 import Result
 import Translations.Account
 
@@ -37,11 +38,15 @@ type Msg
     | Tick
 
 
-type alias Model =
+type alias State =
     { account : Account
     , time : Int
     , price : Int
     }
+
+
+type alias Model =
+    NE.Nonempty State
 
 
 subscriptions : Model -> Sub Msg
@@ -56,41 +61,72 @@ addCmd cmd model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { time = 0
-      , price = 0
-      , account = Account.empty |> Account.setBalance 10
-      }
+    let
+        initState =
+            { time = 0
+            , price = 0
+            , account = Account.empty |> Account.setBalance 10
+            }
+    in
+    ( NE.fromElement initState
     , Cmd.none
     )
 
 
+getState : Model -> State
+getState =
+    NE.head
+
+
+push : State -> Model -> Model
+push state model =
+    let
+        newState =
+            NE.cons state model
+    in
+    if NE.length newState > 100 then
+        newState |> NE.reverse |> NE.pop |> NE.reverse
+
+    else
+        newState
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        state =
+            getState model
+    in
     case msg of
         Tick ->
-            ( { model | time = model.time + 1 }
+            ( model
+                |> NE.cons { state | time = state.time + 1 }
             , Cmd.none
             )
 
         Buy ->
-            ( { model
-                | account =
-                    model.account
-                        |> Account.changeBalance -1
-                        |> Result.andThen (Account.changeLobsters 1)
-                        |> Result.withDefault model.account
-              }
+            ( model
+                |> NE.replaceHead
+                    { state
+                        | account =
+                            state.account
+                                |> Account.changeBalance -1
+                                |> Result.andThen (Account.changeLobsters 1)
+                                |> Result.withDefault state.account
+                    }
             , Cmd.none
             )
 
         Sell ->
-            ( { model
-                | account =
-                    model.account
-                        |> Account.changeBalance 1
-                        |> Result.andThen (Account.changeLobsters -1)
-                        |> Result.withDefault model.account
-              }
+            ( model
+                |> NE.replaceHead
+                    { state
+                        | account =
+                            state.account
+                                |> Account.changeBalance 1
+                                |> Result.andThen (Account.changeLobsters -1)
+                                |> Result.withDefault state.account
+                    }
             , Cmd.none
             )
 
@@ -130,33 +166,44 @@ viewControls =
 
 type alias ChartData =
     { time : Int
-    , price : Int
+    , value : Int
     }
 
 
 viewChart : Model -> Html Msg
-viewChart _ =
+viewChart model =
     let
-        initData : List ChartData
-        initData =
-            List.range 0 100
-                |> List.indexedMap
-                    (\time price ->
-                        { time = time
-                        , price = time * 2
-                        }
-                    )
+        prices : State -> ChartData
+        prices state =
+            { time = state.time
+            , value = state.price
+            }
+
+        balances : State -> ChartData
+        balances state =
+            { time = state.time
+            , value = Account.balance state.account
+            }
+
+        listWith : (a -> b) -> NE.Nonempty a -> List b
+        listWith f nonEmpty =
+            nonEmpty
+                |> NE.map f
+                |> NE.toList
     in
-    LineChart.view1 (.price >> toFloat)
+    LineChart.view2
         (.time >> toFloat)
-        initData
+        (.value >> toFloat)
+        (model |> listWith prices)
+        (model |> listWith balances)
 
 
 body : Model -> List (Html Msg)
 body model =
     [ h1 [] [ text "Open Lobster Exchange" ]
     , p [] [ text "Use your wit to get loads of money" ]
-    , viewAccount model.account
+    , viewAccount (getState model).account
     , viewControls
     , viewChart model
+    , button [ onClick Tick ] [ text "Tick" ]
     ]
