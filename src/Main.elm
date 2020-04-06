@@ -18,8 +18,23 @@ import Html
 import Html.Attributes exposing (href)
 import Html.Events exposing (onClick)
 import LineChart
+import LineChart.Area
+import LineChart.Axis
+import LineChart.Axis.Intersection
+import LineChart.Axis.Line
+import LineChart.Axis.Range
+import LineChart.Axis.Ticks
+import LineChart.Axis.Title
 import LineChart.Colors
+import LineChart.Container
+import LineChart.Coordinate
 import LineChart.Dots
+import LineChart.Events
+import LineChart.Grid
+import LineChart.Interpolation
+import LineChart.Junk
+import LineChart.Legends
+import LineChart.Line
 import List
 import List.Nonempty
 import Maybe
@@ -27,6 +42,7 @@ import Random
 import Result
 import Time
 import Translations.Account
+import Translations.Main
 
 
 main : Program () Model Msg
@@ -44,6 +60,7 @@ type Msg
     | Sell
     | Tick
     | SetPrice Int
+    | Reset
 
 
 type alias State =
@@ -59,7 +76,7 @@ type alias Model =
 
 subscriptions : Model -> Sub Msg
 subscriptions =
-    always (Time.every 250 (always Tick))
+    always (Time.every 200 (always Tick))
 
 
 init : () -> ( Model, Cmd Msg )
@@ -67,8 +84,8 @@ init _ =
     let
         initState =
             { time = 0
-            , price = 0
-            , account = Account.empty |> Account.setBalance 10
+            , price = 25
+            , account = Account.empty |> Account.setBalance 100
             }
     in
     ( List.Nonempty.fromElement initState
@@ -80,7 +97,7 @@ push : State -> Model -> Model
 push state model =
     let
         maxHistory =
-            100
+            300
     in
     model
         |> List.Nonempty.cons state
@@ -93,11 +110,14 @@ push state model =
 generatePrice : Int -> Random.Generator Int
 generatePrice price =
     let
+        volatility =
+            5
+
         lower =
-            max 1 (price - 1)
+            max 1 (price - volatility)
 
         upper =
-            min 10 (price + 1)
+            price + volatility
     in
     Random.int lower upper
 
@@ -147,6 +167,9 @@ update msg model =
             , Cmd.none
             )
 
+        Reset ->
+            init ()
+
 
 view : Model -> Browser.Document Msg
 view model =
@@ -186,54 +209,165 @@ type alias ChartData =
     }
 
 
-viewChart : Model -> Html Msg
-viewChart model =
+listWith : (a -> b) -> List.Nonempty.Nonempty a -> List b
+listWith f =
+    List.Nonempty.map f >> List.Nonempty.toList
+
+
+extractPortfolioValues : State -> ChartData
+extractPortfolioValues state =
+    { time = toFloat state.time
+    , value = toFloat <| state.price * Account.lobsters state.account
+    }
+
+
+extractBalances : State -> ChartData
+extractBalances state =
+    { time = toFloat state.time
+    , value = toFloat <| Account.balance state.account
+    }
+
+
+extractPrices : State -> ChartData
+extractPrices state =
+    { time = toFloat state.time
+    , value = toFloat state.price
+    }
+
+
+startAtZero : LineChart.Coordinate.Range -> LineChart.Coordinate.Range
+startAtZero { max } =
+    { min = 0, max = max }
+
+
+viewAccountChart : Model -> Html Msg
+viewAccountChart model =
     let
-        listWith : (a -> b) -> List.Nonempty.Nonempty a -> List b
-        listWith f =
-            List.Nonempty.map f >> List.Nonempty.toList
-
-        extractPrices : State -> ChartData
-        extractPrices state =
-            { time = toFloat state.time
-            , value = toFloat state.price
-            }
-
-        extractBalances : State -> ChartData
-        extractBalances state =
-            { time = toFloat state.time
-            , value = toFloat <| Account.balance state.account
-            }
-
         balances : LineChart.Series ChartData
         balances =
             LineChart.line
-                LineChart.Colors.green
+                LineChart.Colors.blue
                 LineChart.Dots.triangle
                 "Balance"
                 (listWith extractBalances model)
 
-        prices : LineChart.Series ChartData
-        prices =
+        portfolioValues : LineChart.Series ChartData
+        portfolioValues =
             LineChart.line
-                LineChart.Colors.pink
+                LineChart.Colors.red
+                LineChart.Dots.triangle
+                "Portfolio"
+                (listWith extractPortfolioValues model)
+
+        chartConfig =
+            { y =
+                LineChart.Axis.custom
+                    { title = LineChart.Axis.Title.default "$"
+                    , variable = Just << .value
+                    , pixels = 400
+                    , range = LineChart.Axis.Range.custom startAtZero
+                    , axisLine = LineChart.Axis.Line.default
+                    , ticks = LineChart.Axis.Ticks.default
+                    }
+            , x =
+                LineChart.Axis.custom
+                    { title = LineChart.Axis.Title.default "Time"
+                    , variable = Just << .time
+                    , pixels = 1800
+                    , range = LineChart.Axis.Range.default
+                    , axisLine = LineChart.Axis.Line.default
+                    , ticks = LineChart.Axis.Ticks.default
+                    }
+            , container = LineChart.Container.default "portfolio"
+            , interpolation = LineChart.Interpolation.default
+            , intersection = LineChart.Axis.Intersection.default
+            , legends = LineChart.Legends.default
+            , events = LineChart.Events.default
+            , junk = LineChart.Junk.default
+            , grid = LineChart.Grid.default
+            , area = LineChart.Area.default
+            , line = LineChart.Line.default
+            , dots = LineChart.Dots.default
+            }
+    in
+    LineChart.viewCustom chartConfig
+        [ portfolioValues
+        , balances
+        ]
+
+
+viewPrice : Int -> Html Msg
+viewPrice price =
+    p [] [ text <| Translations.Main.price price ]
+
+
+viewPriceChart : Model -> Html Msg
+viewPriceChart model =
+    let
+        balances : LineChart.Series ChartData
+        balances =
+            LineChart.line
+                LineChart.Colors.green
                 LineChart.Dots.circle
                 "Price"
                 (listWith extractPrices model)
+
+        chartConfig =
+            { y =
+                LineChart.Axis.custom
+                    { title = LineChart.Axis.Title.default "$"
+                    , variable = Just << .value
+                    , pixels = 250
+                    , range = LineChart.Axis.Range.custom startAtZero
+                    , axisLine = LineChart.Axis.Line.default
+                    , ticks = LineChart.Axis.Ticks.default
+                    }
+            , x =
+                LineChart.Axis.custom
+                    { title = LineChart.Axis.Title.default "Time"
+                    , variable = Just << .time
+                    , pixels = 1800
+                    , range = LineChart.Axis.Range.default
+                    , axisLine = LineChart.Axis.Line.default
+                    , ticks = LineChart.Axis.Ticks.default
+                    }
+            , container = LineChart.Container.default "prices"
+            , interpolation = LineChart.Interpolation.default
+            , intersection = LineChart.Axis.Intersection.default
+            , legends = LineChart.Legends.default
+            , events = LineChart.Events.default
+            , junk = LineChart.Junk.default
+            , grid = LineChart.Grid.default
+            , area = LineChart.Area.default
+            , line = LineChart.Line.default
+            , dots = LineChart.Dots.default
+            }
     in
-    LineChart.view .time
-        .value
-        [ prices
-        , balances
+    LineChart.viewCustom chartConfig
+        [ balances
+        ]
+
+
+viewResetButton : Html Msg
+viewResetButton =
+    div []
+        [ button [ onClick Reset ] [ text "Reset" ]
         ]
 
 
 body : Model -> List (Html Msg)
 body model =
+    let
+        state =
+            List.Nonempty.head model
+    in
     [ h1 [] [ text "Open Lobster Exchange \u{1F99E}" ]
     , p [] [ text "Buy and sell fresh lobsters on the open market! Use your wit to get loads of money!" ]
-    , viewAccount (List.Nonempty.head model).account
+    , viewAccount state.account
+    , viewPrice state.price
+    , viewPriceChart model
     , viewControls
-    , viewChart model
+    , viewAccountChart model
     , a [ href "https://github.com/shawa/lobsters.trade" ] [ text "source" ]
+    , viewResetButton
     ]
