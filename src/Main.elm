@@ -56,8 +56,8 @@ main =
 
 
 type Msg
-    = Buy
-    | Sell
+    = Buy Int
+    | Sell Int
     | Tick
     | SetPrice Int
     | Reset
@@ -85,7 +85,7 @@ init _ =
         initState =
             { time = 0
             , price = 25
-            , account = Account.empty |> Account.setBalance 100
+            , account = Account.empty |> Account.setBalance 1000
             }
     in
     ( List.Nonempty.fromElement initState
@@ -111,7 +111,7 @@ generatePrice : Int -> Random.Generator Int
 generatePrice price =
     let
         volatility =
-            5
+            7
 
         lower =
             max 1 (price - volatility)
@@ -143,25 +143,25 @@ update msg model =
             , Random.generate SetPrice (generatePrice state.price)
             )
 
-        Buy ->
+        Buy quantity ->
             ( model
                 |> List.Nonempty.replaceHead
                     { state
                         | account =
                             state.account
-                                |> Account.buy state.price 1
+                                |> Account.buy state.price quantity
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
             )
 
-        Sell ->
+        Sell quantity ->
             ( model
                 |> List.Nonempty.replaceHead
                     { state
                         | account =
                             state.account
-                                |> Account.sell state.price 1
+                                |> Account.sell state.price quantity
                                 |> Result.withDefault state.account
                     }
             , Cmd.none
@@ -189,17 +189,33 @@ viewAccount account =
     in
     div []
         [ table []
-            [ viewField "Balance" (Translations.Account.balance account)
+            [ viewField "Balance" (Translations.Main.currency <| Account.balance account)
             , viewField "Lobsters" (Translations.Account.lobsters account)
             ]
         ]
 
 
-viewControls : Html Msg
-viewControls =
+viewControls : Account -> Int -> Html Msg
+viewControls account price =
+    let
+        lobsters =
+            Account.lobsters account
+
+        balance =
+            Account.balance account
+
+        buyingPower =
+            balance // price
+    in
     div []
-        [ button [ onClick Buy ] [ text "Buy" ]
-        , button [ onClick Sell ] [ text "Sell" ]
+        [ button [ onClick <| Buy 1 ] [ text "Buy 1" ]
+        , button [ onClick <| Buy 5 ] [ text "Buy 5" ]
+        , button [ onClick <| Buy 10 ] [ text "Buy 10" ]
+        , button [ onClick <| Buy buyingPower ] [ text "TRAWL" ]
+        , button [ onClick <| Sell lobsters ] [ text "JETTISON" ]
+        , button [ onClick <| Sell 10 ] [ text "Sell 10" ]
+        , button [ onClick <| Sell 5 ] [ text "Sell 5" ]
+        , button [ onClick <| Sell 1 ] [ text "Sell 1" ]
         ]
 
 
@@ -218,6 +234,15 @@ extractPortfolioValues : State -> ChartData
 extractPortfolioValues state =
     { time = toFloat state.time
     , value = toFloat <| state.price * Account.lobsters state.account
+    }
+
+
+extractPotentialValues : State -> ChartData
+extractPotentialValues { time, account, price } =
+    { time = toFloat time
+    , value =
+        (price * Account.lobsters account + Account.balance account)
+            |> toFloat
     }
 
 
@@ -259,6 +284,14 @@ viewAccountChart model =
                 "Portfolio"
                 (listWith extractPortfolioValues model)
 
+        potentialValues : LineChart.Series ChartData
+        potentialValues =
+            LineChart.line
+                LineChart.Colors.gray
+                LineChart.Dots.cross
+                "Potential"
+                (listWith extractPotentialValues model)
+
         chartConfig =
             { y =
                 LineChart.Axis.custom
@@ -291,14 +324,15 @@ viewAccountChart model =
             }
     in
     LineChart.viewCustom chartConfig
-        [ portfolioValues
+        [ potentialValues
+        , portfolioValues
         , balances
         ]
 
 
 viewPrice : Int -> Html Msg
 viewPrice price =
-    p [] [ text <| Translations.Main.price price ]
+    p [] [ text <| "1 Lobster = " ++ Translations.Main.currency price ]
 
 
 viewPriceChart : Model -> Html Msg
@@ -366,7 +400,7 @@ body model =
     , viewAccount state.account
     , viewPrice state.price
     , viewPriceChart model
-    , viewControls
+    , viewControls state.account state.price
     , viewAccountChart model
     , a [ href "https://github.com/shawa/lobsters.trade" ] [ text "source" ]
     , viewResetButton

@@ -1,13 +1,13 @@
-module Translations.Main exposing (price)
+module Translations.Main exposing (currency)
 
 import FormatNumber
 import FormatNumber.Locales exposing (Decimals(..), usLocale)
 
 
-price : Int -> String
-price p =
+currency : Int -> String
+currency amount =
     let
         locale =
             { usLocale | decimals = Exact 0 }
     in
-    "1 Lobster = $" ++ FormatNumber.format locale (toFloat p)
+    "$" ++ FormatNumber.format locale (toFloat amount)
