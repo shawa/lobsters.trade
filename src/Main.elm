@@ -15,7 +15,7 @@ import Html
         , text
         , tr
         )
-import Html.Attributes exposing (href)
+import Html.Attributes exposing (class, href)
 import Html.Events exposing (onClick)
 import LineChart
 import LineChart.Area
@@ -76,7 +76,7 @@ type alias Model =
 
 subscriptions : Model -> Sub Msg
 subscriptions =
-    always (Time.every 200 (always Tick))
+    always (Time.every 150 (always Tick))
 
 
 init : () -> ( Model, Cmd Msg )
@@ -97,7 +97,7 @@ push : State -> Model -> Model
 push state model =
     let
         maxHistory =
-            300
+            200
     in
     model
         |> List.Nonempty.cons state
@@ -306,7 +306,7 @@ viewAccountChart model =
                 LineChart.Axis.custom
                     { title = LineChart.Axis.Title.default "Time"
                     , variable = Just << .time
-                    , pixels = 1800
+                    , pixels = 1400
                     , range = LineChart.Axis.Range.default
                     , axisLine = LineChart.Axis.Line.default
                     , ticks = LineChart.Axis.Ticks.default
@@ -360,7 +360,7 @@ viewPriceChart model =
                 LineChart.Axis.custom
                     { title = LineChart.Axis.Title.default "Time"
                     , variable = Just << .time
-                    , pixels = 1800
+                    , pixels = 1400
                     , range = LineChart.Axis.Range.default
                     , axisLine = LineChart.Axis.Line.default
                     , ticks = LineChart.Axis.Ticks.default
@@ -399,9 +399,11 @@ body model =
     , p [] [ text "Buy and sell fresh lobsters on the open market! Use your wit to get loads of money!" ]
     , viewAccount state.account
     , viewPrice state.price
-    , viewPriceChart model
+    , div [ class "window" ]
+        [ viewPriceChart model
+        , viewAccountChart model
+        ]
     , viewControls state.account state.price
-    , viewAccountChart model
     , a [ href "https://github.com/shawa/lobsters.trade" ] [ text "source" ]
     , viewResetButton
     ]
